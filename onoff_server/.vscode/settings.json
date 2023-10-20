@@ -4,5 +4,9 @@
   "files.associations": {
     "board.h": "c"
   },
-  "idf.flashType": "JTAG"
+  "idf.flashType": "UART",
+  "idf.openOcdConfigs": [
+    "board/esp32-wrover-kit-3.3v.cfg"
+  ],
+  "idf.portWin": "COM3"
 }
