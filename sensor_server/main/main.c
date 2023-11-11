@@ -29,8 +29,8 @@
 #define CID_ESP     0x02E5
 
 /* Sensor Property ID */
-#define SENSOR_PROPERTY_ID_0        0x0075  /* Precise Present Ambient Temperature */
-#define SENSOR_PROPERTY_ID_1        0x0076  /* Present Ambient Relative Humidity */
+#define SENSOR_PROPERTY_ID_T        0x0075  /* Precise Present Ambient Temperature */
+#define SENSOR_PROPERTY_ID_H        0x0076  /* Present Ambient Relative Humidity */
 
 /* The characteristic of the two device properties is "Temperature 8", which is
  * used to represent a measure of temperature with a unit of 0.5 degree Celsius.
@@ -44,7 +44,7 @@ static int16_t humidity    = 0;     /* Humidity initial value */
 #define SENSOR_NEGATIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_NEG_TOLERANCE
 #define SENSOR_SAMPLE_FUNCTION      ESP_BLE_MESH_SAMPLE_FUNC_UNSPECIFIED
 #define SENSOR_MEASURE_PERIOD       ESP_BLE_MESH_SENSOR_NOT_APPL_MEASURE_PERIOD
-#define SENSOR_UPDATE_INTERVAL      10000
+#define SENSOR_UPDATE_INTERVAL      ESP_BLE_MESH_SENSOR_NOT_APPL_UPDATE_INTERVAL
 
 static uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN] = { 0xdd, 0xdd };
 
@@ -79,7 +79,7 @@ static esp_ble_mesh_sensor_state_t sensor_states[2] = {
      * provided.
      */
     [0] = {
-        .sensor_property_id = SENSOR_PROPERTY_ID_0,
+        .sensor_property_id = SENSOR_PROPERTY_ID_T,
         /* Mesh Model Spec:
          * Sensor Descriptor state represents the attributes describing the sensor
          * data. This state does not change throughout the lifetime of an element.
@@ -95,7 +95,7 @@ static esp_ble_mesh_sensor_state_t sensor_states[2] = {
         .sensor_data.raw_value = &sensor_data_temp,
     },
     [1] = {
-        .sensor_property_id = SENSOR_PROPERTY_ID_1,
+        .sensor_property_id = SENSOR_PROPERTY_ID_H,
         .descriptor.positive_tolerance = SENSOR_POSITIVE_TOLERANCE,
         .descriptor.negative_tolerance = SENSOR_NEGATIVE_TOLERANCE,
         .descriptor.sampling_function = SENSOR_SAMPLE_FUNCTION,
@@ -458,21 +458,26 @@ static uint16_t example_ble_mesh_get_sensor_data(esp_ble_mesh_sensor_state_t *st
 
 static void update_server_model_sensor_data(esp_ble_mesh_sensor_state_t *state)
 {
+    int16_t sensor_reading = 0;
+    struct net_buf_simple * net_buf;
+
     switch (state->sensor_property_id) {
-    case SENSOR_PROPERTY_ID_0:
-        temperature = board_dht_get_temperature();
-        net_buf_simple_reset(&sensor_data_temp);
-        net_buf_simple_add_le16(&sensor_data_temp, temperature);
-        state->sensor_data.length = sizeof(temperature);
+    case SENSOR_PROPERTY_ID_T:
+        sensor_reading = board_dht_get_temperature();
+        net_buf = &sensor_data_temp;
         break;
-    case SENSOR_PROPERTY_ID_1:
-        humidity = board_dht_get_humidity();
-        net_buf_simple_reset(&sensor_data_h);
-        net_buf_simple_add_le16(&sensor_data_h, humidity);
-        state->sensor_data.length = sizeof(humidity);
+    case SENSOR_PROPERTY_ID_H:
+        sensor_reading = board_dht_get_humidity();
+        net_buf = &sensor_data_h;
         break;
     default:
         break;
+    }
+
+    if ( sensor_reading != 0 ) {
+        net_buf_simple_reset(net_buf);
+        net_buf_simple_add_le16(net_buf, sensor_reading);
+        state->sensor_data.length = sizeof(sensor_reading);
     }
 }
 
