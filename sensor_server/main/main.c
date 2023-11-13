@@ -68,7 +68,7 @@ static esp_ble_mesh_cfg_srv_t config_server = {
 };
 
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_temp, 1);
-NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_h, 1);
+NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_humi, 1);
 
 static esp_ble_mesh_sensor_state_t sensor_states[2] = {
     /* Mesh Model Spec:
@@ -104,11 +104,11 @@ static esp_ble_mesh_sensor_state_t sensor_states[2] = {
 
         .sensor_data.format = ESP_BLE_MESH_SENSOR_DATA_FORMAT_A,
         .sensor_data.length = 0, /* 0 represents the length is 1 */
-        .sensor_data.raw_value = &sensor_data_h,
+        .sensor_data.raw_value = &sensor_data_humi,
     },
 };
 
-/* 20 octets is large enough to hold two Sensor Descriptor state values. */
+/* 20 octets is large enough to hold two Sensor Properties Status values. */
 ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_pub, 20, ROLE_NODE);
 static esp_ble_mesh_sensor_srv_t sensor_server = {
     .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
@@ -161,7 +161,7 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
 
     /* Initialize values for each sensor.  */
     net_buf_simple_add_le16(&sensor_data_temp, temperature);
-    net_buf_simple_add_le16(&sensor_data_h, humidity);
+    net_buf_simple_add_le16(&sensor_data_humi, humidity);
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
@@ -309,63 +309,6 @@ send:
     free(status);
 }
 
-// void custom_ble_mesh_send_sensor_readings(int16_t state) {
-// 	// Set the new Motion State
-// 	net_buf_simple_reset(&sensor_data_temp);
-// 	net_buf_simple_add_le16(&sensor_data_temp, state);
-// 	ESP_LOGI(TAG, "Sensor Reading: %d", state);
-	
-// 	// Prep the data to be sent
-// 	uint8_t *status = NULL;
-//     uint16_t buf_size = 0;
-//     uint16_t length = 0;    
-//     esp_err_t err;
-//     int i;
-	
-// 	/**
-//      * Sensor Data state from Mesh Model Spec
-//      * |--------Field--------|-Size (octets)-|------------------------Notes-------------------------|
-//      * |----Property ID 1----|-------2-------|--ID of the 1st device property of the sensor---------|
-//      * |-----Raw Value 1-----|----variable---|--Raw Value field defined by the 1st device property--|
-//      * |----Property ID 2----|-------2-------|--ID of the 2nd device property of the sensor---------|
-//      * |-----Raw Value 2-----|----variable---|--Raw Value field defined by the 2nd device property--|
-//      * | ...... |
-//      * |----Property ID n----|-------2-------|--ID of the nth device property of the sensor---------|
-//      * |-----Raw Value n-----|----variable---|--Raw Value field defined by the nth device property--|
-//      */
-//     for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
-//         esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
-//         if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
-//             buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
-//         } else {
-//             /* Use "state->sensor_data.length + 1" because the length of sensor data is zero-based. */
-//             if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
-//                 buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
-//             } else {
-//                 buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN + state->sensor_data.length + 1;
-//             }
-//         }
-//     }
-
-//     status = calloc(1, buf_size);
-//     if (!status) {
-//         ESP_LOGE(TAG, "No memory for sensor status!");
-//         return;
-//     }
-	
-// 	for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
-// 		length += example_ble_mesh_get_sensor_data(&sensor_states[i], status + length);
-// 	}
-	
-// 	ESP_LOG_BUFFER_HEX("Sensor Data", status, length);	
-//     err = esp_ble_mesh_model_publish(sensor_server.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS, length, status, ROLE_NODE);
-//     if (err != ESP_OK) {
-//         ESP_LOGE(TAG, "Failed to publish Sensor Status, err %d", err);
-//     }
-//     free(status);
-//     esp_deep_sleep_start();
-// }
-
 static void example_ble_mesh_send_sensor_cadence_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     esp_err_t err;
@@ -468,7 +411,7 @@ static void update_server_model_sensor_data(esp_ble_mesh_sensor_state_t *state)
         break;
     case SENSOR_PROPERTY_ID_H:
         sensor_reading = board_dht_get_humidity();
-        net_buf = &sensor_data_h;
+        net_buf = &sensor_data_humi;
         break;
     default:
         break;
@@ -565,6 +508,9 @@ send:
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send Sensor Status");
     }
+    // memcpy(&sensor_pub, status, length);
+    esp_ble_mesh_model_publish(param->model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS,
+            length, status, ROLE_NODE);
     free(status);
 }
 
