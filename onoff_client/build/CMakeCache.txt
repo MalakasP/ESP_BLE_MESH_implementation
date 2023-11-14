@@ -160,7 +160,7 @@ CMAKE_INSTALL_MANDIR:PATH=
 CMAKE_INSTALL_OLDINCLUDEDIR:PATH=/usr/include
 
 //Install path prefix, prepended onto install directories.
-CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/onoff_client
+CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/sensor_client_mqtt_gateway
 
 //Run-time variable data (LOCALSTATEDIR/run)
 CMAKE_INSTALL_RUNSTATEDIR:PATH=
@@ -216,7 +216,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=onoff_client
+CMAKE_PROJECT_NAME:STATIC=sensor_client_mqtt_gateway
 
 //Path to a program.
 CMAKE_RANLIB:FILEPATH=C:/Users/Povilas/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-ranlib.exe
@@ -359,13 +359,13 @@ mbedtls_LIB_DEPENDS:STATIC=general;__idf_cxx;general;__idf_newlib;general;__idf_
 mbedx509_LIB_DEPENDS:STATIC=general;__idf_cxx;general;__idf_newlib;general;__idf_freertos;general;__idf_esp_hw_support;general;__idf_heap;general;__idf_log;general;__idf_soc;general;__idf_hal;general;__idf_esp_rom;general;__idf_esp_common;general;__idf_esp_system;general;__idf_xtensa;general;mbedcrypto;
 
 //Value Computed by CMake
-onoff_client_BINARY_DIR:STATIC=C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build
+sensor_client_mqtt_gateway_BINARY_DIR:STATIC=C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build
 
 //Value Computed by CMake
-onoff_client_IS_TOP_LEVEL:STATIC=ON
+sensor_client_mqtt_gateway_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
-onoff_client_SOURCE_DIR:STATIC=C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client
+sensor_client_mqtt_gateway_SOURCE_DIR:STATIC=C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client
 
 
 ########################
@@ -513,7 +513,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=85
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=84
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP
@@ -573,7 +573,7 @@ HAVE_TIME_T_SIZE:INTERNAL=TRUE
 //CHECK_TYPE_SIZE: sizeof(time_t)
 TIME_T_SIZE:INTERNAL=8
 //CMAKE_INSTALL_PREFIX during last run
-_GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=C:/Program Files (x86)/onoff_client
+_GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=C:/Program Files (x86)/sensor_client_mqtt_gateway
 _Python3_EXECUTABLE:INTERNAL=C:/Users/Povilas/.espressif/python_env/idf5.0_py3.8_env/Scripts/python.exe
 //Python3 Properties
 _Python3_INTERPRETER_PROPERTIES:INTERNAL=Python;3;8;7;32;;;C:\Users\Povilas\.espressif\tools\idf-python\3.8.7\Lib;C:\Users\Povilas\.espressif\tools\idf-python\3.8.7\Lib;C:\Users\Povilas\.espressif\python_env\idf5.0_py3.8_env\Lib\site-packages;C:\Users\Povilas\.espressif\python_env\idf5.0_py3.8_env\Lib\site-packages
