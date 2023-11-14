@@ -5,18 +5,18 @@ cmake_minimum_required(VERSION 3.5)
 
 file(MAKE_DIRECTORY
   "C:/Users/Povilas/esp/esp-idf/components/bootloader/subproject"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/tmp"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/src/bootloader-stamp"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/src"
-  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/tmp"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/src"
+  "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()

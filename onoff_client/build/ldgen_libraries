@@ -60,6 +60,5 @@ C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementati
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/ulp/libulp.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/main/libmain.a
-C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/button/libbutton.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/example_init/libexample_init.a
-C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/example_nvs/libexample_nvs.a
+C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/esp-idf/protocol_examples_common/libprotocol_examples_common.a

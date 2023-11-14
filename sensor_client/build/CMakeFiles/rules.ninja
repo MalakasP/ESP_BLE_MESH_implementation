@@ -1403,7 +1403,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_example_init_
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Povilas\.espressif\tools\cmake\3.24.0\bin\cmake.exe --regenerate-during-build -S"C:\Users\Povilas\Desktop\Magistras - IT Sauga\MBD\Code\ESP_BLE_MESH_implementation\sensor-client\sensor_client" -B"C:\Users\Povilas\Desktop\Magistras - IT Sauga\MBD\Code\ESP_BLE_MESH_implementation\sensor-client\sensor_client\build"
+  command = C:\Users\Povilas\.espressif\tools\cmake\3.24.0\bin\cmake.exe --regenerate-during-build -S"C:\Users\Povilas\Desktop\Magistras - IT Sauga\MBD\Code\ESP_BLE_MESH_implementation\sensor_client" -B"C:\Users\Povilas\Desktop\Magistras - IT Sauga\MBD\Code\ESP_BLE_MESH_implementation\sensor_client\build"
   description = Re-running CMake...
   generator = 1
 

@@ -39,6 +39,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor-client/sensor_client/build/esp-idf/mbedtls/mbedtls/cmake_install.cmake")
+  include("C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/sensor_client/build/esp-idf/mbedtls/mbedtls/cmake_install.cmake")
 endif()
 

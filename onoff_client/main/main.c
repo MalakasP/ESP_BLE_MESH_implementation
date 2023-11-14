@@ -18,14 +18,50 @@
 #include "esp_ble_mesh_provisioning_api.h"
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_config_model_api.h"
-#include "esp_ble_mesh_generic_model_api.h"
 #include "esp_ble_mesh_sensor_model_api.h"
+#include "esp_ble_mesh_local_data_operation_api.h"
+
+#include "lwip/err.h"
+#include "lwip/sys.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+
+#include "protocol_examples_common.h"
+#include "lwip/sockets.h"
+#include "lwip/dns.h"
+#include "lwip/netdb.h"
+#include "mqtt_client.h"
 
 #include "board.h"
 #include "ble_mesh_example_init.h"
-#include "ble_mesh_example_nvs.h"
 
-#define TAG "EXAMPLE"
+#define TAG "SENSOR CLIENT"
+
+#define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
+#define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
+#define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
+
+#if CONFIG_ESP_WIFI_AUTH_OPEN
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
+#elif CONFIG_ESP_WIFI_AUTH_WEP
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WEP
+#elif CONFIG_ESP_WIFI_AUTH_WPA_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_PSK
+#elif CONFIG_ESP_WIFI_AUTH_WPA2_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK
+#elif CONFIG_ESP_WIFI_AUTH_WPA_WPA2_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_WPA2_PSK
+#elif CONFIG_ESP_WIFI_AUTH_WPA3_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA3_PSK
+#elif CONFIG_ESP_WIFI_AUTH_WPA2_WPA3_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_WPA3_PSK
+#elif CONFIG_ESP_WIFI_AUTH_WAPI_PSK
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
+#endif
 
 #define CID_ESP 0x02E5
 
@@ -34,28 +70,22 @@
 #define MSG_TIMEOUT         0
 #define MSG_ROLE            ROLE_NODE
 
+/* The event group allows multiple bits for each event, but we only care about two events:
+ * - we are connected to the AP with an IP
+ * - we failed to connect after the maximum amount of retries */
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
+/* FreeRTOS event group to signal when we are connected*/
+static EventGroupHandle_t s_wifi_event_group;
+
+static int s_retry_num = 0;
+
 static uint8_t dev_uuid[16] = { 0xdd, 0xdd };
 static uint16_t sensor_prop_id;
 
-static uint16_t pub_addr;
-
-static struct example_info_store {
-    uint16_t net_idx;   /* NetKey Index */
-    uint16_t app_idx;   /* AppKey Index */
-    uint8_t  onoff;     /* Remote OnOff */
-    uint8_t  tid;       /* Message TID */
-} __attribute__((packed)) store = {
-    .net_idx = ESP_BLE_MESH_KEY_UNUSED,
-    .app_idx = ESP_BLE_MESH_KEY_UNUSED,
-    .onoff = LED_OFF,
-    .tid = 0x0,
-};
-
-static nvs_handle_t NVS_HANDLE;
-static const char * NVS_KEY = "sensor_client";
-
-static esp_ble_mesh_client_t onoff_client;
 static esp_ble_mesh_client_t sensor_client;
+static esp_mqtt_client_handle_t mqtt_client;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -76,13 +106,8 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_cli_pub, 2 + 1, ROLE_NODE);
-
-
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(&onoff_cli_pub, &onoff_client),
-    
 };
 
 static esp_ble_mesh_model_t extend_model_0[] = {
@@ -114,58 +139,10 @@ static esp_ble_mesh_prov_t provision = {
 #endif
 };
 
-static void mesh_example_info_store(void)
-{
-    ble_mesh_nvs_store(NVS_HANDLE, NVS_KEY, &store, sizeof(store));
-}
-
-static void mesh_example_info_restore(void)
-{
-    esp_err_t err = ESP_OK;
-    bool exist = false;
-
-    err = ble_mesh_nvs_restore(NVS_HANDLE, NVS_KEY, &store, sizeof(store), &exist);
-    if (err != ESP_OK) {
-        return;
-    }
-
-    if (exist) {
-        ESP_LOGI(TAG, "Restore, net_idx 0x%04x, app_idx 0x%04x, onoff %u, tid 0x%02x",
-            store.net_idx, store.app_idx, store.onoff, store.tid);
-    }
-}
-
-// static void ble_mesh_set_msg_common(esp_ble_mesh_client_common_param_t *common,
-//                                             esp_ble_mesh_model_t *model,
-//                                             esp_ble_mesh_msg_ctx_t ctx,
-//                                             uint32_t opcode)
-// {
-//     common->opcode = opcode;
-//     common->model = model;
-//     common->ctx.net_idx = ctx.net_idx;
-//     common->ctx.app_idx = ctx.app_idx;
-//     common->ctx.addr = ctx.addr;
-//     common->ctx.send_ttl = MSG_SEND_TTL;
-//     common->ctx.send_rel = MSG_SEND_REL;
-//     common->msg_timeout = MSG_TIMEOUT;
-//     common->msg_role = MSG_ROLE;
-// }
-
 static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
 {
     ESP_LOGI(TAG, "net_idx: 0x%04x, addr: 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08" PRIx32, flags, iv_index);
-    board_led_operation(LED_G, LED_OFF);
-    store.net_idx = net_idx;
-    /* mesh_example_info_store() shall not be invoked here, because if the device
-     * is restarted and goes into a provisioned state, then the following events
-     * will come:
-     * 1st: ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT
-     * 2nd: ESP_BLE_MESH_PROV_REGISTER_COMP_EVT
-     * So the store.net_idx will be updated here, and if we store the mesh example
-     * info here, the wrong app_idx (initialized with 0xFFFF) will be stored in nvs
-     * just before restoring it.
-     */
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
@@ -174,7 +151,6 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     switch (event) {
     case ESP_BLE_MESH_PROV_REGISTER_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROV_REGISTER_COMP_EVT, err_code %d", param->prov_register_comp.err_code);
-        mesh_example_info_restore(); /* Restore proper mesh example info */
         break;
     case ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_ENABLE_COMP_EVT, err_code %d", param->node_prov_enable_comp.err_code);
@@ -202,82 +178,22 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-void example_ble_mesh_send_gen_onoff_set(void)
+char *convert(uint8_t *a)
 {
-    esp_ble_mesh_generic_client_set_state_t set = {0};
-    esp_ble_mesh_client_common_param_t common = {0};
-    esp_err_t err = ESP_OK;
+  char* buffer2;
+  int i;
 
-    common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK;
-    common.model = onoff_client.model;
-    common.ctx.net_idx = store.net_idx;
-    common.ctx.app_idx = store.app_idx;
-    common.ctx.addr = 0xFFFF;   /* to all nodes */
-    common.ctx.send_ttl = 3;
-    common.ctx.send_rel = false;
-    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
-    common.msg_role = ROLE_NODE;
+  buffer2 = malloc(9);
+  if (!buffer2)
+    return NULL;
 
-    set.onoff_set.op_en = false;
-    set.onoff_set.onoff = store.onoff;
-    set.onoff_set.tid = store.tid++;
+  buffer2[8] = 0;
+  for (i = 0; i <= 7; i++)
+    buffer2[7 - i] = (((*a) >> i) & (0x01)) + '0';
 
-    err = esp_ble_mesh_generic_client_set_state(&common, &set);
-    if (err) {
-        ESP_LOGE(TAG, "Send Generic OnOff Set Unack failed");
-        return;
-    }
+  puts(buffer2);
 
-    store.onoff = !store.onoff;
-    mesh_example_info_store(); /* Store proper mesh example info */
-}
-
-// void ble_mesh_send_sensor_message(esp_ble_mesh_msg_ctx_t ctx, uint32_t opcode) 
-// {
-//     esp_ble_mesh_sensor_client_get_state_t get_state = {0};
-//     esp_ble_mesh_client_common_param_t common = {0};
-//     esp_err_t err = ESP_OK;
-
-//     ble_mesh_set_msg_common(&common, sensor_client.model, ctx, opcode);
-    
-//     err = esp_ble_mesh_sensor_client_get_state(&common, &get_state);
-//     if (err != ESP_OK) {
-//         ESP_LOGE(TAG, "Failed to send sensor message get state");
-//     }
-// }
-
-static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
-                                               esp_ble_mesh_generic_client_cb_param_t *param)
-{
-    ESP_LOGI(TAG, "Generic client, event %u, error code %d, opcode is 0x%04" PRIx32,
-        event, param->error_code, param->params->opcode);
-
-    switch (event) {
-    case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT");
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET) {
-            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, onoff %d", param->status_cb.onoff_status.present_onoff);
-        }
-        break;
-    case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT");
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
-            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, onoff %d", param->status_cb.onoff_status.present_onoff);
-        }
-        break;
-    case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT");
-        break;
-    case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");
-        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
-            /* If failed to get the response of Generic OnOff Set, resend Generic OnOff Set  */
-            example_ble_mesh_send_gen_onoff_set();
-        }
-        break;
-    default:
-        break;
-    }
+  return buffer2;
 }
 
 static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t event,
@@ -396,12 +312,33 @@ static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_even
                     uint16_t prop_id = ESP_BLE_MESH_GET_SENSOR_DATA_PROPERTY_ID(data, fmt);
                     uint8_t mpid_len = (fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ?
                                         ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN : ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN);
+
                     ESP_LOGI(TAG, "Format %s, length 0x%02x, Sensor Property ID 0x%04x",
                         fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ? "A" : "B", data_len, prop_id);
+
                     if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
                         ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
+                        uint8_t *temp_data = data + mpid_len;
+                        char str_data[10];
+
+                        int16_t value = sys_get_le16(temp_data);
+                        sprintf(str_data, "%d", value);
+                        if (prop_id == 0x0075) {
+                            esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
+                        } else if (prop_id == 0x0076) {
+                            esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
+                        }
+                        
                         length += mpid_len + data_len + 1;
                         data += mpid_len + data_len + 1;
+
+                        value = sys_get_le16(data);
+                        sprintf(str_data, "%d", value);
+                        if (prop_id == 0x0075) {
+                            esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
+                        } else if (prop_id == 0x0076) {
+                            esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
+                        }
                     } else {
                         length += mpid_len;
                         data += mpid_len;
@@ -436,21 +373,63 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
                 param->value.state_change.mod_app_bind.app_idx,
                 param->value.state_change.mod_app_bind.company_id,
                 param->value.state_change.mod_app_bind.model_id);
-            if (param->value.state_change.mod_app_bind.company_id == 0xFFFF &&
-                param->value.state_change.mod_app_bind.model_id == ESP_BLE_MESH_MODEL_ID_GEN_ONOFF_CLI) {
-                store.app_idx = param->value.state_change.mod_app_bind.app_idx;
-                mesh_example_info_store(); /* Store proper mesh example info */
-            }
             break;
         case ESP_BLE_MESH_MODEL_OP_MODEL_PUB_SET:
                 ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_PUB_SET");
-                pub_addr = param->value.state_change.mod_pub_set.pub_addr;
-                ESP_LOGI(TAG, "pub_addr: %d", pub_addr);
             break;
         default:
             break;
         }
     }
+}
+
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+    ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%ld", base, event_id);
+    esp_mqtt_event_handle_t event = event_data;
+    // esp_mqtt_client_handle_t client = event->client;
+    mqtt_client = event->client;
+    // int msg_id;
+
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_SUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_UNSUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_PUBLISHED:
+            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_DATA:
+            ESP_LOGI(TAG, "MQTT_EVENT_DATA, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_ERROR:
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            break;
+        default:
+            ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+            break;
+    }
+}
+
+static void mqtt_app_start(void)
+{
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = CONFIG_BROKER_URL,
+    };
+
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+
+    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    esp_mqtt_client_start(client);
 }
 
 static esp_err_t ble_mesh_init(void)
@@ -459,7 +438,6 @@ static esp_err_t ble_mesh_init(void)
 
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
-    esp_ble_mesh_register_generic_client_callback(example_ble_mesh_generic_client_cb);
     esp_ble_mesh_register_sensor_client_callback(example_ble_mesh_sensor_client_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
@@ -476,9 +454,89 @@ static esp_err_t ble_mesh_init(void)
 
     ESP_LOGI(TAG, "BLE Mesh Node initialized");
 
-    board_led_operation(LED_G, LED_ON);
-
     return err;
+}
+
+static void event_handler(void* arg, esp_event_base_t event_base,
+                                int32_t event_id, void* event_data)
+{
+    //TODO: cleanup code
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+            esp_wifi_connect();
+            s_retry_num++;
+            ESP_LOGI(TAG, "retry to connect to the AP");
+        } else {
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        }
+        ESP_LOGI(TAG,"connect to the AP fail");
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
+void wifi_init_sta(void)
+{
+    s_wifi_event_group = xEventGroupCreate();
+
+    ESP_ERROR_CHECK(esp_netif_init());
+
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_got_ip));
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .password = EXAMPLE_ESP_WIFI_PASS,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+    ESP_ERROR_CHECK(esp_wifi_start() );
+
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
+
+    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
+     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE,
+            pdFALSE,
+            portMAX_DELAY);
+
+    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
+     * happened. */
+    if (bits & WIFI_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+    } else if (bits & WIFI_FAIL_BIT) {
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+                 EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+    } else {
+        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+    }
 }
 
 void app_main(void)
@@ -496,17 +554,13 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    wifi_init_sta();
+
     err = bluetooth_init();
     if (err) {
         ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
         return;
     }
-
-    /* Open nvs namespace for storing/restoring mesh example info */
-    // err = ble_mesh_nvs_open(&NVS_HANDLE);
-    // if (err) {
-    //     return;
-    // }
 
     ble_mesh_get_dev_uuid(dev_uuid);
 
@@ -515,4 +569,6 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+    mqtt_app_start();
 }
