@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 file(MAKE_DIRECTORY
-  "C:/Users/Povilas/esp/esp-idf/components/bootloader/subproject"
+  "C:/Espressif/frameworks/esp-idf-v5.1.1/components/bootloader/subproject"
   "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/bootloader"
   "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/bootloader-prefix"
   "C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/onoff_client/build/bootloader-prefix/tmp"
