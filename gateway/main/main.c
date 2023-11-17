@@ -702,8 +702,8 @@ void wifi_init_sta(void)
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS,
+            .ssid = "PMixel",
+            .password = "esp32ktu",
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };

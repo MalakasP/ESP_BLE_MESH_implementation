@@ -30,7 +30,6 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 
-#include "protocol_examples_common.h"
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
@@ -178,24 +177,6 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-char *convert(uint8_t *a)
-{
-  char* buffer2;
-  int i;
-
-  buffer2 = malloc(9);
-  if (!buffer2)
-    return NULL;
-
-  buffer2[8] = 0;
-  for (i = 0; i <= 7; i++)
-    buffer2[7 - i] = (((*a) >> i) & (0x01)) + '0';
-
-  puts(buffer2);
-
-  return buffer2;
-}
-
 static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t event,
                                               esp_ble_mesh_sensor_client_cb_param_t *param)
 {
@@ -334,12 +315,8 @@ static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_even
 
                         value = sys_get_le16(data);
                         sprintf(str_data, "%d", value);
-                        if (prop_id == 0x0075) {
-                            esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
-                        } else if (prop_id == 0x0076) {
-                            esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
-                        }
-                    } else {
+                        esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
+                        } else {
                         length += mpid_len;
                         data += mpid_len;
                     }
@@ -422,7 +399,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = CONFIG_BROKER_URL,
+        .broker.address.uri = "mqtt://192.168.181.155:1883",
+        .broker.address.port = 1883,
     };
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
