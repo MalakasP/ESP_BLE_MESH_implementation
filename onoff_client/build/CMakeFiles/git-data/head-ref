@@ -1,1 +1,7 @@
-f158a19255cfe3e4c14a96706b098d0dffd04a27
+0000000000000000000000000000000000000000 e1097fc06befd0a1a16c27eb8a26da36d09fbe72 MalakasP <pvlsmlks@gmail.com> 1699717110 +0200	branch: Created from HEAD
+e1097fc06befd0a1a16c27eb8a26da36d09fbe72 2f255dbd15978fa08db20a7f2be3eb801ff1b58a MalakasP <pvlsmlks@gmail.com> 1699717231 +0200	commit: add .gitignore
+2f255dbd15978fa08db20a7f2be3eb801ff1b58a 39f2d74ad15972bf7fcdefcda0d08a663fce3352 MalakasP <pvlsmlks@gmail.com> 1699857012 +0200	commit: Implement sensor client subscribe functionality
+39f2d74ad15972bf7fcdefcda0d08a663fce3352 f84e1dd2a826bdb082856ac91e0626c8448a6d29 MalakasP <pvlsmlks@gmail.com> 1699858362 +0200	commit: Add init value for model publish data
+f84e1dd2a826bdb082856ac91e0626c8448a6d29 12ad004ed957464e77c2ff37331282d1995e8a49 MalakasP <pvlsmlks@gmail.com> 1700000585 +0200	commit: add gateway functionality to sensor_client
+12ad004ed957464e77c2ff37331282d1995e8a49 fde429e31b1298e285b67f6bba220e8784201cda MalakasP <pvlsmlks@gmail.com> 1700002063 +0200	commit: add MQTT client gateway to sensor_client
+fde429e31b1298e285b67f6bba220e8784201cda 76127ef73ccac574fc18791df03058faf67588ab MalakasP <pvlsmlks@gmail.com> 1700013554 +0200	commit: mqtt gateway v1

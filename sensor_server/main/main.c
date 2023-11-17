@@ -399,7 +399,7 @@ static uint16_t example_ble_mesh_get_sensor_data(esp_ble_mesh_sensor_state_t *st
     return (mpid_len + data_len);
 }
 
-static void update_server_model_sensor_data(esp_ble_mesh_sensor_state_t *state)
+static void update_server_model_sensor_state(esp_ble_mesh_sensor_state_t *state)
 {
     int16_t sensor_reading = 0;
     struct net_buf_simple * net_buf;
@@ -448,7 +448,7 @@ static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_pa
      */
     for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
         esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
-        update_server_model_sensor_data(state);
+        update_server_model_sensor_state(state);
 
         if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
             buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
@@ -553,8 +553,7 @@ static void example_ble_mesh_send_sensor_series_status(esp_ble_mesh_sensor_serve
     }
 }
 
-static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t event,
-                                              esp_ble_mesh_sensor_server_cb_param_t *param)
+static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t event, esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     ESP_LOGI(TAG, "Sensor server, event %d, src 0x%04x, dst 0x%04x, model_id 0x%04x",
         event, param->ctx.addr, param->ctx.recv_dst, param->model->model_id);
@@ -622,6 +621,74 @@ static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_even
     }
 }
 
+static void update_ble_mesh_sensor_pub_data(esp_ble_mesh_model_cb_param_t *param)
+{
+    uint8_t *status = NULL;
+    uint16_t buf_size = 0;
+    uint16_t length = 0;
+    int i;
+
+    ESP_LOGI(TAG, "Board DHT read");
+    board_dht_read();
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
+        update_server_model_sensor_state(state);
+
+        if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
+            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
+        } else if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
+            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
+        } else {
+            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN + state->sensor_data.length + 1;
+        }
+    }
+
+    status = calloc(1, buf_size);
+    if (!status) {
+        ESP_LOGE(TAG, "No memory for sensor status!");
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        length += example_ble_mesh_get_sensor_data(&sensor_states[i], status + length);
+    }
+    
+    ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
+    esp_ble_mesh_model_publish(param->model_publish_update.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS,
+            length, status, ROLE_NODE);
+    free(status);
+}
+
+static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param)
+{
+    switch (event) {
+    case ESP_BLE_MESH_MODEL_OPERATION_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OPERATION_EVT");
+        break;
+
+    case ESP_BLE_MESH_MODEL_PUBLISH_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_PUBLISH_COMP_EVT");
+        break;
+
+    case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT");
+        break;
+
+    case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_SEND_COMP_EVT");
+        break;
+
+    case ESP_BLE_MESH_MODEL_PUBLISH_UPDATE_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_PUBLISH_UPDATE_EVT");
+        update_ble_mesh_sensor_pub_data(param);
+        break;
+
+    default:
+        break;
+    }
+}
+
 static esp_err_t ble_mesh_init(void)
 {
     esp_err_t err;
@@ -629,6 +696,7 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
     esp_ble_mesh_register_sensor_server_callback(example_ble_mesh_sensor_server_cb);
+    esp_ble_mesh_register_custom_model_callback(ble_mesh_custom_model_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {

@@ -8,6 +8,7 @@ C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementati
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/bootloader_support/libbootloader_support.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_partition/libesp_partition.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/app_update/libapp_update.a
+C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_mm/libesp_mm.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/spi_flash/libspi_flash.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/pthread/libpthread.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_system/libesp_system.a
@@ -30,6 +31,7 @@ C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementati
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/lwip/liblwip.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_netif/libesp_netif.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/wpa_supplicant/libwpa_supplicant.a
+C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_coex/libesp_coex.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/esp_wifi/libesp_wifi.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/bt/libbt.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/unity/libunity.a
@@ -57,7 +59,6 @@ C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementati
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/mqtt/libmqtt.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/perfmon/libperfmon.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/spiffs/libspiffs.a
-C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/ulp/libulp.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/main/libmain.a
 C:/Users/Povilas/Desktop/Magistras - IT Sauga/MBD/Code/ESP_BLE_MESH_implementation/gateway/build/esp-idf/example_init/libexample_init.a
