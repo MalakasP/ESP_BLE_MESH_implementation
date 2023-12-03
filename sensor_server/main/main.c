@@ -508,9 +508,8 @@ send:
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send Sensor Status");
     }
-    // memcpy(&sensor_pub, status, length);
-    esp_ble_mesh_model_publish(param->model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS,
-            length, status, ROLE_NODE);
+    memcpy(sensor_pub.msg->data, status, length);
+    sensor_pub.msg->len = length;
     free(status);
 }
 
