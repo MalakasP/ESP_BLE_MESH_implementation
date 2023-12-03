@@ -35,7 +35,6 @@
 #include "lwip/netdb.h"
 #include "mqtt_client.h"
 
-#include "board.h"
 #include "ble_mesh_example_init.h"
 
 #define TAG "SENSOR CLIENT"
@@ -177,6 +176,40 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
+static void send_to_mqtt_broker(uint8_t *data, uint16_t length) {
+    uint16_t index = 0;
+    for (; index < length; ) {
+        uint8_t fmt = ESP_BLE_MESH_GET_SENSOR_DATA_FORMAT(data);
+        uint8_t data_len = ESP_BLE_MESH_GET_SENSOR_DATA_LENGTH(data, fmt);
+        uint16_t prop_id = ESP_BLE_MESH_GET_SENSOR_DATA_PROPERTY_ID(data, fmt);
+        uint8_t mpid_len = (fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ?
+                            ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN : ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN);
+
+        ESP_LOGI(TAG, "Format %s, length 0x%02x, Sensor Property ID 0x%04x",
+            fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ? "A" : "B", data_len, prop_id);
+
+        if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
+            ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
+            uint8_t *temp_data = data + mpid_len;
+            char str_data[10];
+
+            int16_t value = sys_get_le16(temp_data);
+            sprintf(str_data, "%d", value);
+            if (prop_id == 0x0075) {
+                esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
+            } else if (prop_id == 0x0076) {
+                esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
+            }
+            
+            index += mpid_len + data_len + 1;
+            data += mpid_len + data_len + 1;
+        } else {
+            index += mpid_len;
+            data += mpid_len;
+        }
+    }
+}
+
 static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t event,
                                               esp_ble_mesh_sensor_client_cb_param_t *param)
 {
@@ -280,52 +313,17 @@ static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_even
         ESP_LOGI(TAG, "ESP_BLE_MESH_SENSOR_CLIENT_PUBLISH_EVT");
         ESP_LOGI(TAG, "Sensor Status, opcode 0x%04" PRIx32, param->params->ctx.recv_op);
         ESP_LOGI(TAG, "Sensor Status, data length: %d", param->status_cb.sensor_status.marshalled_sensor_data->len);
-        // ble_mesh_send_sensor_message(param->params->ctx, ESP_BLE_MESH_MODEL_OP_SENSOR_GET);
         if (param->status_cb.sensor_status.marshalled_sensor_data->len) {
-                ESP_LOG_BUFFER_HEX("Sensor Data", param->status_cb.sensor_status.marshalled_sensor_data->data,
-                    param->status_cb.sensor_status.marshalled_sensor_data->len);
-                ESP_LOGI(TAG, "Sensor Status, opcode %p", param->status_cb.sensor_status.marshalled_sensor_data->data);
-                uint8_t *data = param->status_cb.sensor_status.marshalled_sensor_data->data;
-                uint16_t length = 0;
-                for (; length < param->status_cb.sensor_status.marshalled_sensor_data->len; ) {
-                    uint8_t fmt = ESP_BLE_MESH_GET_SENSOR_DATA_FORMAT(data);
-                    uint8_t data_len = ESP_BLE_MESH_GET_SENSOR_DATA_LENGTH(data, fmt);
-                    uint16_t prop_id = ESP_BLE_MESH_GET_SENSOR_DATA_PROPERTY_ID(data, fmt);
-                    uint8_t mpid_len = (fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ?
-                                        ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN : ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN);
-
-                    ESP_LOGI(TAG, "Format %s, length 0x%02x, Sensor Property ID 0x%04x",
-                        fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ? "A" : "B", data_len, prop_id);
-
-                    if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
-                        ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
-                        uint8_t *temp_data = data + mpid_len;
-                        char str_data[10];
-
-                        int16_t value = sys_get_le16(temp_data);
-                        sprintf(str_data, "%d", value);
-                        if (prop_id == 0x0075) {
-                            esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
-                        } else if (prop_id == 0x0076) {
-                            esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
-                        }
-                        
-                        length += mpid_len + data_len + 1;
-                        data += mpid_len + data_len + 1;
-
-                        value = sys_get_le16(data);
-                        sprintf(str_data, "%d", value);
-                        esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
-                        } else {
-                        length += mpid_len;
-                        data += mpid_len;
-                    }
-                }
-            }
+            ESP_LOG_BUFFER_HEX("Sensor Data", param->status_cb.sensor_status.marshalled_sensor_data->data,
+                param->status_cb.sensor_status.marshalled_sensor_data->len);
+            ESP_LOGI(TAG, "Sensor Status, opcode %p", param->status_cb.sensor_status.marshalled_sensor_data->data);
+            send_to_mqtt_broker(param->status_cb.sensor_status.marshalled_sensor_data->data,
+                param->status_cb.sensor_status.marshalled_sensor_data->len);
+        }
         break;
     case ESP_BLE_MESH_SENSOR_CLIENT_TIMEOUT_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_SENSOR_CLIENT_TIMEOUT_EVT");
-        // example_ble_mesh_sensor_timeout(param->params->opcode);
+        break;
     default:
         break;
     }
@@ -364,9 +362,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%ld", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-    // esp_mqtt_client_handle_t client = event->client;
     mqtt_client = event->client;
-    // int msg_id;
 
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
@@ -435,27 +431,50 @@ static esp_err_t ble_mesh_init(void)
     return err;
 }
 
-static void event_handler(void* arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data)
+static void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
-    //TODO: cleanup code
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+    switch (event_id) {
+        case WIFI_EVENT_STA_START:
             esp_wifi_connect();
-            s_retry_num++;
-            ESP_LOGI(TAG, "retry to connect to the AP");
-        } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        }
-        ESP_LOGI(TAG,"connect to the AP fail");
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+            break;
+        case WIFI_EVENT_STA_DISCONNECTED:
+            if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+                esp_wifi_connect();
+                s_retry_num++;
+                ESP_LOGI(TAG, "retry to connect to the AP");
+            } else {
+                xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+            }
+            ESP_LOGI(TAG,"connect to the AP fail");
+            break;
+        case IP_EVENT_STA_GOT_IP:
+            ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+            ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+            s_retry_num = 0;
+            xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+            break;
+        default:
+            ESP_LOGI(TAG, "Other event id:%d",(int)event_id);
+            break;
     }
+            
+    // if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+    //     esp_wifi_connect();
+    // } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+    //     if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+    //         esp_wifi_connect();
+    //         s_retry_num++;
+    //         ESP_LOGI(TAG, "retry to connect to the AP");
+    //     } else {
+    //         xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+    //     }
+    //     ESP_LOGI(TAG,"connect to the AP fail");
+    // } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+    //     ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+    //     ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+    //     s_retry_num = 0;
+    //     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    // }
 }
 
 void wifi_init_sta(void)
@@ -522,8 +541,6 @@ void app_main(void)
     esp_err_t err;
 
     ESP_LOGI(TAG, "Initializing...");
-
-    board_init();
 
     err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {

@@ -25,7 +25,7 @@ int16_t board_dht_get_humidity(void)
 
 void board_dht_read(void)
 {
-    // gpio_set_pull_mode(DHT_GPIO, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(DHT_GPIO, GPIO_PULLUP_ONLY);
     if (dht_read_data(sensor_type, DHT_GPIO, &humidity, &temperature) != ESP_OK){
         ESP_LOGW(TAG, "Could not read data from sensor\n");
     }
