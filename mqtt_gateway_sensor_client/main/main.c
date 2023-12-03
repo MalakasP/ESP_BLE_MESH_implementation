@@ -203,10 +203,6 @@ static void send_to_mqtt_broker(uint8_t *data, uint16_t length) {
             
             index += mpid_len + data_len + 1;
             data += mpid_len + data_len + 1;
-
-            // value = sys_get_le16(data);
-            // sprintf(str_data, "%d", value);
-            // esp_mqtt_client_publish(mqtt_client, "/sensor/humidity", str_data, 0, 0, 0);
         } else {
             index += mpid_len;
             data += mpid_len;
