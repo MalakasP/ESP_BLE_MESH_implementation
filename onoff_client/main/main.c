@@ -399,7 +399,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = "mqtt://192.168.181.155:1883",
+        .broker.address.uri = "mqtt://192.168.0.141:1883",
         .broker.address.port = 1883,
     };
 
