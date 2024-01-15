@@ -123,18 +123,14 @@ static esp_ble_mesh_comp_t composition = {
     .element_count = ARRAY_SIZE(elements),
 };
 
+const uint8_t static_oob_val[] = {1};
 /* Disable OOB security for SILabs Android app */
 static esp_ble_mesh_prov_t provision = {
     .uuid = dev_uuid,
-#if 0
-    .output_size = 4,
-    .output_actions = ESP_BLE_MESH_DISPLAY_NUMBER,
-    .input_actions = ESP_BLE_MESH_PUSH,
-    .input_size = 4,
-#else
+    .static_val = static_oob_val,
+    .static_val_len = sizeof(static_oob_val),
     .output_size = 0,
-    .output_actions = 0,
-#endif
+    .output_actions = 0
 };
 
 static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
@@ -396,6 +392,7 @@ static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = "mqtt://192.168.0.141:1883",
+        //"mqtt://192.168.181.155:1883"
         .broker.address.port = 1883,
     };
 
