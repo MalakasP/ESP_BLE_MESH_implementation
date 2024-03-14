@@ -172,7 +172,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-static void send_to_mqtt_broker(uint8_t *data, uint16_t length) {
+static void send_to_mqtt_broker(uint8_t *data, uint16_t length, uint16_t addr ) {
     uint16_t index = 0;
     for (; index < length; ) {
         uint8_t fmt = ESP_BLE_MESH_GET_SENSOR_DATA_FORMAT(data);
@@ -187,10 +187,11 @@ static void send_to_mqtt_broker(uint8_t *data, uint16_t length) {
         if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
             ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
             uint8_t *temp_data = data + mpid_len;
-            char str_data[10];
+            char str_data[20];
 
             int16_t value = sys_get_le16(temp_data);
-            sprintf(str_data, "%d", value);
+            sprintf(str_data, "%d,%d", value, addr);
+            ESP_LOGI(TAG, "MQTT payload %s", str_data);
             if (prop_id == 0x0075) {
                 esp_mqtt_client_publish(mqtt_client, "/sensor/temperature", str_data, 0, 0, 0);
             } else if (prop_id == 0x0076) {
@@ -314,7 +315,7 @@ static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_even
                 param->status_cb.sensor_status.marshalled_sensor_data->len);
             ESP_LOGI(TAG, "Sensor Status, opcode %p", param->status_cb.sensor_status.marshalled_sensor_data->data);
             send_to_mqtt_broker(param->status_cb.sensor_status.marshalled_sensor_data->data,
-                param->status_cb.sensor_status.marshalled_sensor_data->len);
+                param->status_cb.sensor_status.marshalled_sensor_data->len, param->params->ctx.addr);
         }
         break;
     case ESP_BLE_MESH_SENSOR_CLIENT_TIMEOUT_EVT:
@@ -392,7 +393,7 @@ static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = "mqtt://192.168.0.141:1883",
-        //"mqtt://192.168.181.155:1883"
+        //"mqtt://192.168.116.155:1883"
         .broker.address.port = 1883,
     };
 
