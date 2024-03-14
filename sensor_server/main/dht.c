@@ -119,22 +119,17 @@ static inline esp_err_t dht_fetch_data(dht_sensor_type_t sensor_type, gpio_num_t
     gpio_set_level(pin, 1);
 
     // Step through Phase 'B', 40us
-    CHECK_LOGE(dht_await_pin_state(pin, 40, 0, NULL),
-            "Initialization error, problem in phase 'B'");
+    dht_await_pin_state(pin, 40, 0, NULL);
     // Step through Phase 'C', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 88, 1, NULL),
-            "Initialization error, problem in phase 'C'");
+    dht_await_pin_state(pin, 88, 1, NULL);
     // Step through Phase 'D', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 88, 0, NULL),
-            "Initialization error, problem in phase 'D'");
+    dht_await_pin_state(pin, 88, 0, NULL);
 
     // Read in each of the 40 bits of data...
     for (int i = 0; i < DHT_DATA_BITS; i++)
     {
-        CHECK_LOGE(dht_await_pin_state(pin, 65, 1, &low_duration),
-                "LOW bit timeout");
-        CHECK_LOGE(dht_await_pin_state(pin, 75, 0, &high_duration),
-                "HIGH bit timeout");
+        dht_await_pin_state(pin, 65, 1, &low_duration);
+        dht_await_pin_state(pin, 75, 0, &high_duration);
 
         uint8_t b = i / 8;
         uint8_t m = i % 8;
