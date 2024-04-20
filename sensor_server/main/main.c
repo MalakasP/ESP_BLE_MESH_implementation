@@ -513,6 +513,45 @@ send:
     free(status);
 }
 
+static void example_ble_mesh_init_sensor_pub_data()
+{
+    uint8_t *status = NULL;
+    uint16_t buf_size = 0;
+    uint16_t length = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
+        update_server_model_sensor_state(state);
+
+        if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
+            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
+        } else {
+            /* Use "state->sensor_data.length + 1" because the length of sensor data is zero-based. */
+            if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
+                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
+            } else {
+                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN + state->sensor_data.length + 1;
+            }
+        }
+    }
+
+    status = calloc(1, buf_size);
+    if (!status) {
+        ESP_LOGE(TAG, "No memory for sensor status!");
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        length += example_ble_mesh_get_sensor_data(&sensor_states[i], status + length);
+    }
+
+    ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
+    memcpy(sensor_pub.msg->data, status, length);
+    sensor_pub.msg->len = length;
+    free(status);
+}
+
 static void example_ble_mesh_send_sensor_column_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     uint8_t *status = NULL;
@@ -708,6 +747,9 @@ static esp_err_t ble_mesh_init(void)
         ESP_LOGE(TAG, "Failed to enable mesh node");
         return err;
     }
+
+    example_ble_mesh_init_sensor_pub_data();
+    ESP_LOGI(TAG, "BLE Mesh sensor server publication data initialized");
 
     ESP_LOGI(TAG, "BLE Mesh sensor server initialized");
 
