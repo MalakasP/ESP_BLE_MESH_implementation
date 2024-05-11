@@ -10,9 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include "esp_random.h"
 
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "mesh_main.h"
+#include "provisioner_main.h"
 
 #include "esp_ble_mesh_defs.h"
 #include "esp_ble_mesh_common_api.h"
@@ -109,7 +112,7 @@ static esp_ble_mesh_sensor_state_t sensor_states[2] = {
 };
 
 /* 20 octets is large enough to hold two Sensor Properties Status values. */
-ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_pub, 20, ROLE_NODE);
+ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_pub, 370, ROLE_NODE);
 static esp_ble_mesh_sensor_srv_t sensor_server = {
     .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
     .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
@@ -433,7 +436,6 @@ static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_pa
     esp_err_t err;
     int i;
 
-    ESP_LOGI(TAG, "Board DHT read");
     board_dht_read();
     /**
      * Sensor Data state from Mesh Model Spec
@@ -666,7 +668,6 @@ static void update_ble_mesh_sensor_pub_data(esp_ble_mesh_model_cb_param_t *param
     uint16_t length = 0;
     int i;
 
-    ESP_LOGI(TAG, "Board DHT read");
     board_dht_read();
 
     for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
@@ -698,6 +699,56 @@ static void update_ble_mesh_sensor_pub_data(esp_ble_mesh_model_cb_param_t *param
     free(status);
 }
 
+static void update_ble_mesh_sensor_pub_data_with_test_data(esp_ble_mesh_model_cb_param_t *param)
+{
+    uint8_t *msg = NULL;
+    uint16_t length = 150;
+   
+    msg = calloc(1, length);
+    if (!msg) {
+        ESP_LOGE(TAG, "No memory for test msg!");
+        return;
+    }
+
+    esp_fill_random(msg, length);
+
+    // ESP_LOG_BUFFER_HEX("Sensor Data", msg, length);
+    esp_ble_mesh_model_publish(param->model_publish_update.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS,
+            length, msg, ROLE_NODE);
+    free(msg);
+}
+
+static void example_ble_mesh_init_sensor_pub_buff_with_test_data()
+{
+    uint8_t *msg = NULL;
+    uint16_t length = 150;
+   
+    msg = calloc(1, length);
+    if (!msg) {
+        ESP_LOGE(TAG, "No memory for test msg!");
+        return;
+    }
+
+     for (int i = 0; i < length; i++) {
+        msg[i] = i % 256;  // Ensure bytes are in the range [0, 255]
+    }
+
+    ESP_LOG_BUFFER_HEX("Sensor Data", msg, length);
+    memcpy(sensor_pub.msg->data, msg, length);
+    sensor_pub.msg->len = length;
+    free(msg);
+}
+
+static void log_pub_time(esp_ble_mesh_model_cb_param_t *param)
+{
+    uint32_t elapsed = 0U;
+
+    if (!param->model_publish_comp.model->pub) { return; }
+
+    elapsed = k_uptime_get_32() - param->model_publish_comp.model->pub->period_start;
+    ESP_LOGI(TAG, "Publishing took %lums", elapsed);
+}
+
 static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param)
 {
     switch (event) {
@@ -706,7 +757,7 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
         break;
 
     case ESP_BLE_MESH_MODEL_PUBLISH_COMP_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_PUBLISH_COMP_EVT");
+        log_pub_time(param);
         break;
 
     case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
@@ -718,8 +769,8 @@ static void ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_bl
         break;
 
     case ESP_BLE_MESH_MODEL_PUBLISH_UPDATE_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_PUBLISH_UPDATE_EVT");
-        update_ble_mesh_sensor_pub_data(param);
+        // update_ble_mesh_sensor_pub_data(param);
+        update_ble_mesh_sensor_pub_data_with_test_data(param);
         break;
 
     default:
@@ -748,10 +799,14 @@ static esp_err_t ble_mesh_init(void)
         return err;
     }
 
-    example_ble_mesh_init_sensor_pub_data();
-    ESP_LOGI(TAG, "BLE Mesh sensor server publication data initialized");
+    // example_ble_mesh_init_sensor_pub_data();
+    example_ble_mesh_init_sensor_pub_buff_with_test_data();
+    ESP_LOGI(TAG, "BLE Mesh sensor server publication data initialized with test data");
 
     ESP_LOGI(TAG, "BLE Mesh sensor server initialized");
+
+    // When stored node mesh configuration should be erased 
+    // bt_mesh_node_reset();
 
     return ESP_OK;
 }
