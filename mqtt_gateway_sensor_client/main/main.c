@@ -74,6 +74,13 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
+extern const uint8_t mqtt_esp_client_crt_pem_start[]   asm("_binary_esp_client_crt_pem_start");
+extern const uint8_t mqtt_esp_client_crt_pem_end[]     asm("_binary_esp_client_crt_pem_end");
+extern const uint8_t mqtt_esp_client_key_pem_start[]   asm("_binary_esp_client_key_pem_start");
+extern const uint8_t mqtt_esp_client_key_pem_end[]     asm("_binary_esp_client_key_pem_end");
+extern const uint8_t server_root_crt_pem_start[]       asm("_binary_server_root_cert_pem_start");
+extern const uint8_t server_root_crt_pem_end[]         asm("_binary_server_root_cert_pem_end");
+
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
@@ -392,9 +399,20 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = "mqtt://192.168.0.141:1883",
-        //"mqtt://192.168.116.155:1883"
-        .broker.address.port = 1883,
+        .broker = {
+            .address.uri = "mqtts://192.168.0.141:8883", //"mqtt://192.168.116.155:1883"
+            .address.port = 8883,
+            .verification = {
+                .certificate = (const char *)server_root_crt_pem_start,
+                .skip_cert_common_name_check = true
+            }
+        },
+        .credentials = {
+            .authentication = {
+                .certificate = (const char *)mqtt_esp_client_crt_pem_start,
+                .key = (const char *)mqtt_esp_client_key_pem_start,
+            }
+        }
     };
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
