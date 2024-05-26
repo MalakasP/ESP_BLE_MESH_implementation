@@ -12,7 +12,10 @@
 #include <inttypes.h>
 
 #include "esp_log.h"
+#include "mesh.h"
 #include "nvs_flash.h"
+#include "settings.h"
+#include "settings_nvs.h"
 
 #include "esp_ble_mesh_common_api.h"
 #include "esp_ble_mesh_provisioning_api.h"
@@ -534,6 +537,42 @@ void wifi_init_sta(void)
     }
 }
 
+static void clear_rpl(void)
+{
+    struct net_buf_simple *buf = NULL;
+    char name[16] = {'\0'};
+    size_t length = 0U;
+    uint16_t src = 0U;
+    int i;
+
+    BT_DBG("%s", __func__);
+
+    buf = bt_mesh_get_core_settings_item("mesh/rpl");
+    if (!buf) {
+        bt_mesh_erase_core_settings("mesh/rpl");
+        return;
+    }
+
+    length = buf->len;
+
+    for (i = 0; i < length / SETTINGS_ITEM_SIZE; i++) {
+        src = net_buf_simple_pull_le16(buf);
+
+        if (!BLE_MESH_ADDR_IS_UNICAST(src)) {
+            BT_ERR("Invalid source address 0x%04x", src);
+            continue;
+        }
+
+        sprintf(name, "mesh/rpl/%04x", src);
+        bt_mesh_erase_core_settings(name);
+    }
+
+    bt_mesh_erase_core_settings("mesh/rpl");
+
+    bt_mesh_free_buf(buf);
+    return;
+}
+
 void app_main(void)
 {
     esp_err_t err;
@@ -562,6 +601,8 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+    clear_rpl();
 
     mqtt_app_start();
 }
