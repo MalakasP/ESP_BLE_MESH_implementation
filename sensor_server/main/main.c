@@ -695,6 +695,7 @@ static void update_ble_mesh_sensor_pub_data(esp_ble_mesh_model_cb_param_t *param
     ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
     esp_ble_mesh_model_publish(param->model_publish_update.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS,
             length, status, ROLE_NODE);
+    board_max17048_read();
     free(status);
 }
 

@@ -7,6 +7,8 @@ int16_t board_dht_get_humidity(void);
 
 void board_dht_read(void);
 
+void board_max17048_read(void);
+
 void board_init(void);
 
 #endif
